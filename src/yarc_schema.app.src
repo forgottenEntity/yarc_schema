@@ -11,7 +11,8 @@
   {registered, []},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    yarc_riak
    ]},
   {env,[]},
   {modules, []},

@@ -10,7 +10,10 @@
 
 %% API
 -export([
-          definition_to_json/1
+          get_definition_name/1,
+          create_definition_entry/1,
+          add_definition_entry/3,
+          new/1
         ]).
 
 -define(datatype_integer, 1).
@@ -20,22 +23,23 @@
 -define(datatype_decimal, 5).
 -define(datatype_string, 6).
 
-
 %% ******************************************************************************
 %% API Functions
 %% ******************************************************************************
 
-
+get_definition_name(Definition) ->
+  Def = definition_from_json(Definition),
+  maps:get(<<"name">>, Def).
 
 %% ******************************************************************************
 %% Internal Functions
 %% ******************************************************************************
 
 create_definition_entry(DataType) ->
-  #{datatype => DataType}.
+  #{<<"datatype">> => DataType}.
 
 new(Name) ->
-  #{name => Name}.
+  #{<<"name">> => Name}.
 
 add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
   case maps:is_key(DefinitionEntryName, Definition) of
@@ -45,7 +49,7 @@ add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
       case is_entry_deleted(ExistingDefinitionEntry) of
         true ->
           %% entry has existed in the past but has been deleted - so need to readd and increment version...
-          DefinitionWithReAddedStatus = maps:put(status, entry_readded, ExistingDefinitionEntry),
+          DefinitionWithReAddedStatus = maps:put(<<"status">>, <<"entry_readded">>, ExistingDefinitionEntry),
           maps:put(DefinitionEntryName, increment_version(DefinitionWithReAddedStatus), Definition);
         _False ->
           {error, definition_entry_already_exists}
@@ -57,14 +61,14 @@ add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
 
 remove_definition_entry(Definition_Entry_Name, Definition) ->
   DefinitionEntry = maps:get(Definition_Entry_Name, Definition),
-  RemovedEntry = maps:put(status, entry_deleted, DefinitionEntry),
+  RemovedEntry = maps:put(<<"status">>, <<"entry_deleted">>, DefinitionEntry),
   maps:put(Definition_Entry_Name, RemovedEntry, Definition).
 
 is_entry_deleted(Definition) ->
-  case maps:is_key(status, Definition) of
+  case maps:is_key(<<"status">>, Definition) of
     true ->
-      case maps:get(status, Definition) of
-        entry_deleted ->
+      case maps:get(<<"status">>, Definition) of
+        <<"entry_deleted">> ->
           true;
         _AnyOtherStatus ->
           false
@@ -82,33 +86,33 @@ get_definition_entry(Name, Definition) ->
   end.
 
 get_definition_entry_datatype(DefinitionEntry) ->
-  maps:get(datatype, DefinitionEntry).
+  maps:get(<<"datatype">>, DefinitionEntry).
 
 get_definition_entry_version(DefinitionEntry) ->
-  case maps:is_key(version, DefinitionEntry) of
+  case maps:is_key(<<"version">>, DefinitionEntry) of
     true ->
-      maps:get(version, DefinitionEntry);
+      maps:get(<<"version">>, DefinitionEntry);
     _False ->
       0
   end.
 
 get_definition_entry_status(DefinitionEntry) ->
-  case maps:is_key(status, DefinitionEntry) of
+  case maps:is_key(<<"status">>, DefinitionEntry) of
     true ->
-      maps:get(status, DefinitionEntry);
+      maps:get(<<"status">>, DefinitionEntry);
     _False ->
       undefined
   end.
 
 increment_version(Definition) ->
-  maps:put(version, get_definition_entry_version(Definition) + 1, Definition).
+  maps:put(<<"version">>, get_definition_entry_version(Definition) + 1, Definition).
 
 
 definition_to_json(Definition) ->
   jsx:encode(Definition).
 
 definition_from_json(JSon) ->
-  jsx:decode(JSon).
+  jsx:decode(JSon, [return_maps]).
 
 %% ******************************************************************************
 %% Unit Tests
