@@ -10,7 +10,7 @@
 
 
 %% API exports
--export([list_all_definitions/0,
+-export([list_all_definitions/1,
          get_definition/2,
          put_definition/2,
          new/0
@@ -29,8 +29,10 @@
 new() ->
   yarc_schema_cache:new().
 
-list_all_definitions() ->
-  [].
+-spec(list_all_definitions(YarcSchemaState :: tuple()) -> list() | {error, notfound}).
+list_all_definitions(YarcSchemaState) ->
+  yarc_schema_index:get_index(YarcSchemaState).
+
 
 -spec(get_definition(Name :: binary(), YarcSchemaState :: tuple()) -> binary_json() | {error, notfound}).
 get_definition(Name, SchemaCache) ->

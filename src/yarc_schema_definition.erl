@@ -10,12 +10,27 @@
 
 %% API
 -export([
-          get_definition_name/1,
-          create_definition_entry/1,
-          add_definition_entry/3,
-          new/1,
-          filter_deleted_definition_entries/1
-        ]).
+  get_definition_name/1,
+  create_definition_entry/1,
+  create_definition_entry/2,
+  create_definition_entry/3,
+  add_definition_entry/3,
+  remove_definition_entry/2,
+  new/1,
+  filter_deleted_definition_entries/1
+  ]).
+
+
+%% Field Specifiers
+
+-define(status, <<"status">>).
+-define(datatype, <<"datatype">>).
+-define(name, <<"name">>).
+-define(version, <<"version">>).
+-define(index, <<"index">>).
+-define(default_value, <<"default_value">>).
+
+%% Data Type Specifiers
 
 -define(datatype_integer, 1).
 -define(datatype_float, 2).
@@ -23,6 +38,13 @@
 -define(datatype_boolean, 4).
 -define(datatype_decimal, 5).
 -define(datatype_string, 6).
+
+%% Status Specifiers
+
+-define(entry_deleted, <<"entry_deleted">>).
+-define(entry_readded, <<"entry_readded">>).
+
+
 
 %% ******************************************************************************
 %% API Functions
@@ -32,15 +54,23 @@ get_definition_name(Definition) ->
   Def = definition_from_json(Definition),
   maps:get(<<"name">>, Def).
 
-%% ******************************************************************************
-%% Internal Functions
-%% ******************************************************************************
-
+-spec(create_definition_entry(DataType :: integer()) -> map()).
 create_definition_entry(DataType) ->
-  #{<<"datatype">> => DataType}.
+  #{?datatype => DataType}.
+
+-spec(create_definition_entry(DataType :: integer(), Default_Value :: term()) -> map()).
+create_definition_entry(DataType, Default_Value) ->
+  #{?datatype => DataType, ?default_value => Default_Value}.
+
+-spec(create_definition_entry(DataType :: integer(), Default_Value :: term(), Index :: boolean()) -> map()).
+create_definition_entry(DataType, Default_Value, Index) ->
+  #{?datatype => DataType, ?default_value => Default_Value, ?index => Index}.
+
 
 new(Name) ->
-  #{<<"name">> => Name}.
+  #{?name => Name}.
+
+
 
 add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
   case maps:is_key(DefinitionEntryName, Definition) of
@@ -50,7 +80,7 @@ add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
       case is_entry_deleted(ExistingDefinitionEntry) of
         true ->
           %% entry has existed in the past but has been deleted - so need to readd and increment version...
-          DefinitionWithReAddedStatus = maps:put(<<"status">>, <<"entry_readded">>, ExistingDefinitionEntry),
+          DefinitionWithReAddedStatus = maps:put(?status, ?entry_readded, ExistingDefinitionEntry),
           maps:put(DefinitionEntryName, increment_version(DefinitionWithReAddedStatus), Definition);
         _False ->
           {error, definition_entry_already_exists}
@@ -62,14 +92,38 @@ add_definition_entry(DefinitionEntryName, DefinitionEntry, Definition) ->
 
 remove_definition_entry(Definition_Entry_Name, Definition) ->
   DefinitionEntry = maps:get(Definition_Entry_Name, Definition),
-  RemovedEntry = maps:put(<<"status">>, <<"entry_deleted">>, DefinitionEntry),
+  RemovedEntry = maps:put(?status, ?entry_deleted, DefinitionEntry),
   maps:put(Definition_Entry_Name, RemovedEntry, Definition).
 
+filter_deleted_definition_entries(DefinitionMap) ->
+  maps:filter(
+    fun(Key, Value) ->
+      case Key of
+        ?name ->
+          true;
+        Key ->
+          case get_definition_entry_status(Value) of
+            ?entry_deleted ->
+              false;
+            _AnythingElse ->
+              true
+          end
+      end
+    end,
+    DefinitionMap).
+
+
+%% ******************************************************************************
+%% Internal Functions
+%% ******************************************************************************
+
+
+
 is_entry_deleted(Definition) ->
-  case maps:is_key(<<"status">>, Definition) of
+  case maps:is_key(?status, Definition) of
     true ->
-      case maps:get(<<"status">>, Definition) of
-        <<"entry_deleted">> ->
+      case maps:get(?status, Definition) of
+        ?entry_deleted ->
           true;
         _AnyOtherStatus ->
           false
@@ -87,49 +141,27 @@ get_definition_entry(Name, Definition) ->
   end.
 
 get_definition_entry_datatype(DefinitionEntry) ->
-  maps:get(<<"datatype">>, DefinitionEntry).
+  maps:get(?datatype, DefinitionEntry).
 
 get_definition_entry_version(DefinitionEntry) ->
-  case maps:is_key(<<"version">>, DefinitionEntry) of
+  case maps:is_key(?version, DefinitionEntry) of
     true ->
-      maps:get(<<"version">>, DefinitionEntry);
+      maps:get(?version, DefinitionEntry);
     _False ->
       0
   end.
 
 get_definition_entry_status(DefinitionEntry) ->
-  case maps:is_key(<<"status">>, DefinitionEntry) of
+  case maps:is_key(?status, DefinitionEntry) of
     true ->
-      maps:get(<<"status">>, DefinitionEntry);
+      maps:get(?status, DefinitionEntry);
     _False ->
       undefined
   end.
 
 increment_version(Definition) ->
-  maps:put(<<"version">>, get_definition_entry_version(Definition) + 1, Definition).
+  maps:put(?version, get_definition_entry_version(Definition) + 1, Definition).
 
-
-filter_deleted_definition_entries(DefinitionMap) ->
-  maps:filter(
-    fun(Key, Value) ->
-      case Key of
-        <<"name">> ->
-          true;
-        Key ->
-          case get_definition_entry_status(Value) of
-            <<"entry_deleted">> ->
-              false;
-            _AnythingElse ->
-              true
-          end
-      end
-      end,
-    DefinitionMap).
-
-
-
-definition_to_json(Definition) ->
-  jsx:encode(Definition).
 
 definition_from_json(JSon) ->
   jsx:decode(JSon, [return_maps]).
@@ -151,26 +183,26 @@ add_definition_entry_new_test() ->
 
 add_definition_entry_existing_test() ->
   DefinitionEntry = create_definition_entry(?datatype_string),
-  Definition = #{name => <<"test">>, test_string => #{datatype => ?datatype_string, version => 2}},
-  ?assertEqual({error, definition_entry_already_exists}, add_definition_entry(test_string, DefinitionEntry, Definition)).
+  Definition = #{?name => <<"test">>, <<"test_string">> => #{?datatype => ?datatype_string, ?version => 2}},
+  ?assertEqual({error, definition_entry_already_exists}, add_definition_entry(<<"test_string">>, DefinitionEntry, Definition)).
 
 add_definition_entry_existing_deleted_test() ->
   DefinitionEntry = create_definition_entry(?datatype_string),
-  Definition = #{name => <<"test">>, test_string => #{datatype => ?datatype_string, version => 2, status => entry_deleted}},
-  NewDefinition = add_definition_entry(test_string, DefinitionEntry, Definition),
-  FetchedDefinitionEntry = get_definition_entry(test_string, NewDefinition),
+  Definition = #{?name => <<"test">>, <<"test_string">> => #{?datatype => ?datatype_string, ?version => 2, ?status => ?entry_deleted}},
+  NewDefinition = add_definition_entry(<<"test_string">>, DefinitionEntry, Definition),
+  FetchedDefinitionEntry = get_definition_entry(<<"test_string">>, NewDefinition),
   ?assertEqual(?datatype_string, get_definition_entry_datatype(FetchedDefinitionEntry)),
-  ?assertEqual(entry_readded, get_definition_entry_status(FetchedDefinitionEntry)),
+  ?assertEqual(?entry_readded, get_definition_entry_status(FetchedDefinitionEntry)),
   ?assertEqual(3, get_definition_entry_version(FetchedDefinitionEntry)).
 
 
 add_two_definition_entries_and_remove_one_definition_entry_test() ->
   DefinitionEntry = create_definition_entry(?datatype_string),
-  DefinitionA = add_definition_entry(forename, DefinitionEntry, new(<<"test">>)),
-  DefinitionB = add_definition_entry(surname, DefinitionEntry, DefinitionA),
+  DefinitionA = add_definition_entry(<<"forename">>, DefinitionEntry, new(<<"test">>)),
+  DefinitionB = add_definition_entry(<<"surname">>, DefinitionEntry, DefinitionA),
 
-  ForenameDefinitionEntry = get_definition_entry(forename, DefinitionB),
-  SurnameDefinitionEntry = get_definition_entry(surname, DefinitionB),
+  ForenameDefinitionEntry = get_definition_entry(<<"forename">>, DefinitionB),
+  SurnameDefinitionEntry = get_definition_entry(<<"surname">>, DefinitionB),
   ?assertEqual(?datatype_string, get_definition_entry_datatype(ForenameDefinitionEntry)),
   ?assertEqual(?datatype_string, get_definition_entry_datatype(SurnameDefinitionEntry)),
   ?assertEqual(1, get_definition_entry_version(ForenameDefinitionEntry)),
@@ -179,15 +211,15 @@ add_two_definition_entries_and_remove_one_definition_entry_test() ->
   ?assertEqual(undefined, get_definition_entry_status(SurnameDefinitionEntry)),
 
 
-  DefinitionC = remove_definition_entry(surname, DefinitionB),
-  FinalForenameDefinitionEntry = get_definition_entry(forename, DefinitionC),
-  FinalSurnameDefinitionEntry = get_definition_entry(surname, DefinitionC),
+  DefinitionC = remove_definition_entry(<<"surname">>, DefinitionB),
+  FinalForenameDefinitionEntry = get_definition_entry(<<"forename">>, DefinitionC),
+  FinalSurnameDefinitionEntry = get_definition_entry(<<"surname">>, DefinitionC),
   ?assertEqual(?datatype_string, get_definition_entry_datatype(FinalForenameDefinitionEntry)),
   ?assertEqual(?datatype_string, get_definition_entry_datatype(FinalSurnameDefinitionEntry)),
   ?assertEqual(1, get_definition_entry_version(FinalForenameDefinitionEntry)),
   ?assertEqual(1, get_definition_entry_version(FinalSurnameDefinitionEntry)),
   ?assertEqual(undefined, get_definition_entry_status(FinalForenameDefinitionEntry)),
-  ?assertEqual(entry_deleted, get_definition_entry_status(FinalSurnameDefinitionEntry)).
+  ?assertEqual(?entry_deleted, get_definition_entry_status(FinalSurnameDefinitionEntry)).
 
 
 

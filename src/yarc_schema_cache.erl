@@ -9,7 +9,7 @@
 -author("forgottenEntity").
 
 %% API
--export([list_all_definition_names/1,
+-export([
          get_definition/2,
          put_definition/2,
          put_definition/3,
@@ -33,10 +33,7 @@ new() ->
   ETSCache = ets:new(yarc_schema_cache, [public, ordered_set, {read_concurrency, true}]),
   #yarc_schema_cache{etscache = ETSCache}.
 
-
-list_all_definition_names(#yarc_schema_cache{etscache = ETSCache}) ->
-  [].
-
+-spec(get_definition(Name :: binary(), YarcSchemaCache :: tuple()) -> undefined | binary_json()).
 get_definition(Name, #yarc_schema_cache{etscache = ETSCache}) ->
   case ets:lookup(ETSCache, Name) of
     [] ->
@@ -45,24 +42,27 @@ get_definition(Name, #yarc_schema_cache{etscache = ETSCache}) ->
       Definition
   end.
 
+-spec(put_definition(Definition :: binary_json(), YarcSchemaCache :: tuple()) -> ok).
 put_definition(Definition, #yarc_schema_cache{etscache = ETSCache}) ->
   Name = yarc_schema_definition:get_definition_name(Definition),
   ets:insert_new(ETSCache, {Name, Definition}).
 
+-spec(put_definition(Name :: binary(), Definition :: binary_json(), YarcSchemaCache :: tuple()) -> ok).
 put_definition(Name, Definition, #yarc_schema_cache{etscache = ETSCache}) ->
   ets:insert_new(ETSCache, {Name, Definition}).
 
-
+-spec(replace_definition(Definition :: binary_json(), YarcSchemaCache :: tuple()) -> ok).
 replace_definition(Definition, #yarc_schema_cache{etscache = ETSCache}) ->
   Name = yarc_schema_definition:get_definition_name(Definition),
   ets:insert(ETSCache, {Name, Definition}),
   ok.
 
+-spec(replace_definition(Name :: binary(), Definition :: binary_json(), YarcSchemaCache :: tuple()) -> ok).
 replace_definition(Name, Definition, #yarc_schema_cache{etscache = ETSCache}) ->
   ets:insert(ETSCache, {Name, Definition}),
   ok.
 
-
+-spec(get_definition_index(YarcSchemaCache :: tuple()) -> undefined | list()).
 get_definition_index(#yarc_schema_cache{etscache = ETSCache}) ->
   case ets:lookup(ETSCache, ?YARC_SCHEMA_INDEX) of
     [] ->
@@ -71,6 +71,7 @@ get_definition_index(#yarc_schema_cache{etscache = ETSCache}) ->
       Index
   end.
 
+-spec(put_definition_index(Index :: list(), YarcSchemaCache :: tuple()) -> ok).
 put_definition_index(Index, #yarc_schema_cache{etscache = ETSCache}) ->
   ets:insert(ETSCache, {?YARC_SCHEMA_INDEX, Index}),
   ok.
