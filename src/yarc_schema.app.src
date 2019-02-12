@@ -12,7 +12,8 @@
   {applications,
    [kernel,
     stdlib,
-    yarc_riak
+    yarc_riak,
+    jsx
    ]},
   {env,[]},
   {modules, []},

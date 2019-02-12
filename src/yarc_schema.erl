@@ -52,7 +52,7 @@ get_definition(Name, SchemaCache) ->
 -spec(put_definition(Definition :: binary_json(), YarcSchemaState :: tuple()) -> ok | {error, term()}).
 put_definition(Definition, SchemaCache) ->
   Name = yarc_schema_definition:get_definition_name(Definition),
-  yarc_schema_cache:put_definition(Name, Definition, SchemaCache),
+  yarc_schema_cache:replace_definition(Name, Definition, SchemaCache),
   put_definition_to_riak(Name, Definition).
 
 
