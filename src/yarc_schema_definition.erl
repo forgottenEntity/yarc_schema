@@ -13,7 +13,8 @@
           get_definition_name/1,
           create_definition_entry/1,
           add_definition_entry/3,
-          new/1
+          new/1,
+          filter_deleted_definition_entries/1
         ]).
 
 -define(datatype_integer, 1).
@@ -106,6 +107,25 @@ get_definition_entry_status(DefinitionEntry) ->
 
 increment_version(Definition) ->
   maps:put(<<"version">>, get_definition_entry_version(Definition) + 1, Definition).
+
+
+filter_deleted_definition_entries(DefinitionMap) ->
+  maps:filter(
+    fun(Key, Value) ->
+      case Key of
+        <<"name">> ->
+          true;
+        Key ->
+          case get_definition_entry_status(Value) of
+            <<"entry_deleted">> ->
+              false;
+            _AnythingElse ->
+              true
+          end
+      end
+      end,
+    DefinitionMap).
+
 
 
 definition_to_json(Definition) ->

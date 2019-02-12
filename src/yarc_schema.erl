@@ -17,6 +17,7 @@
         ]).
 
 -define(YARC_SCHEMA_BUCKET, <<"yarc_schema">>).
+
 -define(DEFAULT_TIMEOUT, 5000).
 
 -type binary_json() :: binary().
@@ -57,6 +58,8 @@ put_definition(Definition, SchemaCache) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+
 
 get_definition_from_riak(Name) ->
   RiakConnection = yarc_riak_connection_pool:get_connection(yarc_riak_pool),
